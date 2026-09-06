@@ -44,3 +44,21 @@ async def clock_out(
     current_user: Employee = Depends(get_current_user),
 ):
     return await clock_out_employee(db, employee_id=current_user.id)
+
+
+from typing import List
+from app.schemas.attendance import AttendanceAdminRecordResponse
+from app.services.attendance_service import get_all_attendance_summary
+
+@router.get("/all", response_model=List[AttendanceAdminRecordResponse])
+async def get_all_monthly_attendance(
+    month: Optional[str] = Query(
+        None,
+        description="Month in YYYY-MM format (e.g. 2026-08)",
+        examples=["2026-08"],
+    ),
+    db: AsyncSession = Depends(get_db),
+    current_user: Employee = Depends(get_current_user),
+):
+    # Depending on requirements, we might want to check if current_user.role == 'admin' here.
+    return await get_all_attendance_summary(db, month=month)

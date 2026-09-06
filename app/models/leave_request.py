@@ -13,13 +13,20 @@ if TYPE_CHECKING:
 class LeaveType(str, enum.Enum):
     personal = "personal"  # ลากิจ
     sick = "sick"          # ลาป่วย
+    vacation = "vacation"  # ลาพักร้อน
 
 
 class LeaveStatus(str, enum.Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+    cancelled = "cancelled"
 
+
+class LeaveDuration(str, enum.Enum):
+    full_day = "full_day"
+    morning = "morning"
+    afternoon = "afternoon"
 
 class LeaveRequest(Base):
     __tablename__ = "leave_requests"
@@ -38,6 +45,12 @@ class LeaveRequest(Base):
     type: Mapped[LeaveType] = mapped_column(
         Enum(LeaveType, name="leave_type"),
         nullable=False,
+    )
+    duration: Mapped[LeaveDuration] = mapped_column(
+        Enum(LeaveDuration, name="leave_duration"),
+        nullable=False,
+        default=LeaveDuration.full_day,
+        server_default="full_day",
     )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)

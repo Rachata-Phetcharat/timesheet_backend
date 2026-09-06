@@ -1,12 +1,13 @@
 from datetime import date
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, model_validator
-from app.models.leave_request import LeaveStatus, LeaveType
+from app.models.leave_request import LeaveStatus, LeaveType, LeaveDuration
 from app.schemas.employee import EmployeeResponse
 
 
 class LeaveRequestCreate(BaseModel):
     type: LeaveType
+    duration: LeaveDuration = LeaveDuration.full_day
     start_date: date
     end_date: date
     reason: str
@@ -26,6 +27,7 @@ class LeaveRequestResponse(BaseModel):
     id: str
     employee_id: str
     type: LeaveType
+    duration: LeaveDuration
     start_date: date
     end_date: date
     reason: str

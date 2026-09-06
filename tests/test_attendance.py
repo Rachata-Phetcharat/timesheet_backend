@@ -8,7 +8,7 @@ async def test_clock_in_success(client: AsyncClient, staff_headers: dict[str, st
     assert response.status_code == 200
     data = response.json()
     assert data["clock_in_at"] is not None
-    assert data["status"] in ["on_time", "late"]
+    assert data["status"] in ["on_time", "late", "absent", "absent_half_morning", "absent_half_afternoon"]
     assert "id" in data
 
 

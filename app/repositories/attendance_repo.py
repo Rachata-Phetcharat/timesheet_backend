@@ -93,3 +93,23 @@ async def update_attendance_clock_out(
     await db.commit()
     await db.refresh(record)
     return record
+
+
+async def get_all_employees_attendance_records(
+    db: AsyncSession,
+    start_time: datetime,
+    end_time: datetime,
+) -> Sequence[AttendanceRecord]:
+    from sqlalchemy.orm import joinedload
+    result = await db.execute(
+        select(AttendanceRecord)
+        .options(joinedload(AttendanceRecord.employee))
+        .where(
+            and_(
+                AttendanceRecord.clock_in_at >= start_time,
+                AttendanceRecord.clock_in_at <= end_time,
+            )
+        )
+        .order_by(AttendanceRecord.clock_in_at.desc())
+    )
+    return result.scalars().all()

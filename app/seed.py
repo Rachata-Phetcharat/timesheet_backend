@@ -7,8 +7,8 @@ from app.repositories.employee_repo import get_employee_by_email
 
 async def seed():
     async with AsyncSessionLocal() as db:
-        admin_email = "admin@timesheet.local"
-        staff_email = "staff@timesheet.local"
+        admin_email = "admin@timesheet.com"
+        staff_email = "staff@timesheet.com"
 
         admin = await get_employee_by_email(db, admin_email)
         if not admin:
@@ -31,6 +31,18 @@ async def seed():
             )
             db.add(staff)
             print(f"Created default staff user: {staff_email} / staff1234")
+
+        newuser_email = "newuser@timesheet.com"
+        newuser = await get_employee_by_email(db, newuser_email)
+        if not newuser:
+            newuser = Employee(
+                email=newuser_email,
+                hashed_password=get_password_hash("newuser1234"),
+                full_name="New Employee",
+                role=EmployeeRole.staff,
+            )
+            db.add(newuser)
+            print(f"Created new user: {newuser_email} / newuser1234")
 
         await db.commit()
         print("Database seed completed successfully!")

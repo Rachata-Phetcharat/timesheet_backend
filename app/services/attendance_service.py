@@ -41,16 +41,73 @@ async def clock_in_employee(
             detail="Already clocked in today",
         )
 
-    work_start = get_work_start_time()
-    work_start_minutes = work_start.hour * 60 + work_start.minute
     current_minutes = now.hour * 60 + now.minute
 
-    if current_minutes > work_start_minutes:
-        att_status = AttendanceStatus.late
-        late_minutes = current_minutes - work_start_minutes
+    # Check for approved leaves today
+    from sqlalchemy import select, and_
+    from app.models.leave_request import LeaveRequest, LeaveStatus, LeaveDuration
+    
+    leave_query = select(LeaveRequest).where(
+        and_(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.start_date <= now.date(),
+            LeaveRequest.end_date >= now.date(),
+            LeaveRequest.status == LeaveStatus.approved,
+        )
+    )
+    result = await db.execute(leave_query)
+    today_leave = result.scalars().first()
+
+    if today_leave and today_leave.duration == LeaveDuration.full_day:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot clock in: You are on full-day leave today",
+        )
+
+    if today_leave and today_leave.duration == LeaveDuration.morning:
+        # ใช้เกณฑ์เข้างานบ่ายเท่านั้น
+        if current_minutes <= 12 * 60 + 34: # ถึง 12:34
+            att_status = AttendanceStatus.on_time
+            late_minutes = 0
+        elif current_minutes <= 13 * 60: # 12:35 - 13:00
+            att_status = AttendanceStatus.late
+            late_minutes = current_minutes - (12 * 60 + 30)
+        else: # 13:01 เป็นต้นไป
+            att_status = AttendanceStatus.absent_half_afternoon
+            late_minutes = 0
+    elif today_leave and today_leave.duration == LeaveDuration.afternoon:
+        # ใช้เกณฑ์เข้างานเช้าเท่านั้น
+        if current_minutes <= 9 * 60 + 4: # ถึง 09:04
+            att_status = AttendanceStatus.on_time
+            late_minutes = 0
+        elif current_minutes <= 9 * 60 + 30: # 09:05 - 09:30
+            att_status = AttendanceStatus.late
+            late_minutes = current_minutes - (9 * 60)
+        else: # 09:31 เป็นต้นไป
+            att_status = AttendanceStatus.absent_half_morning
+            late_minutes = 0
     else:
-        att_status = AttendanceStatus.on_time
-        late_minutes = 0
+        # เกณฑ์ปกติ (ไม่มีลา หรือไม่ตรงกับลาครึ่งวัน)
+        # เกณฑ์ช่วงเช้า
+        if current_minutes <= 9 * 60 + 4: # ถึง 09:04
+            att_status = AttendanceStatus.on_time
+            late_minutes = 0
+        elif current_minutes <= 9 * 60 + 30: # 09:05 - 09:30
+            att_status = AttendanceStatus.late
+            late_minutes = current_minutes - (9 * 60)
+        elif current_minutes <= 12 * 60 + 29: # 09:31 - 12:29
+            att_status = AttendanceStatus.absent_half_morning
+            late_minutes = 0
+        # เกณฑ์ช่วงบ่าย
+        elif current_minutes <= 12 * 60 + 34: # 12:30 - 12:34
+            att_status = AttendanceStatus.absent_half_morning # ขาดเช้า มาทันบ่าย
+            late_minutes = 0
+        elif current_minutes <= 13 * 60: # 12:35 - 13:00
+            att_status = AttendanceStatus.absent_half_morning # ขาดเช้า มาสายบ่าย
+            late_minutes = current_minutes - (12 * 60 + 30)
+        else: # 13:01 เป็นต้นไป
+            att_status = AttendanceStatus.absent_half_afternoon # ขาดบ่าย
+            late_minutes = 0
 
     return await create_attendance_record(
         db=db,
@@ -134,3 +191,43 @@ async def get_my_attendance(
         total_late_minutes=total_late_minutes,
         records=[AttendanceRecordResponse.model_validate(r) for r in records],
     )
+
+
+async def get_all_attendance_summary(
+    db: AsyncSession,
+    month: Optional[str] = None,
+):
+    now = datetime.now()
+    if month:
+        try:
+            year_str, month_str = month.split("-")
+            year = int(year_str)
+            month_num = int(month_str)
+            _, last_day = calendar.monthrange(year, month_num)
+            start_time = datetime(year, month_num, 1, 0, 0, 0)
+            end_time = datetime(year, month_num, last_day, 23, 59, 59)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid month format. Expected YYYY-MM (e.g. 2026-08)",
+            )
+    else:
+        _, last_day = calendar.monthrange(now.year, now.month)
+        start_time = datetime(now.year, now.month, 1, 0, 0, 0)
+        end_time = datetime(now.year, now.month, last_day, 23, 59, 59)
+
+    from app.repositories.attendance_repo import get_all_employees_attendance_records
+    records = await get_all_employees_attendance_records(
+        db, start_time=start_time, end_time=end_time
+    )
+
+    from app.schemas.attendance import AttendanceAdminRecordResponse
+    response_records = []
+    for r in records:
+        resp = AttendanceAdminRecordResponse.model_validate(r)
+        if r.employee:
+            resp.employee_name = r.employee.full_name
+            resp.employee_email = r.employee.email
+        response_records.append(resp)
+
+    return response_records

@@ -40,6 +40,12 @@ async def get_my_leaves(
     return await get_leave_requests_by_employee(db=db, employee_id=employee_id)
 
 
+async def get_all_leaves(
+    db: AsyncSession,
+) -> Sequence[LeaveRequest]:
+    return await get_all_leave_requests(db=db)
+
+
 async def get_leave_by_id(
     db: AsyncSession,
     leave_id: str,
@@ -80,4 +86,32 @@ async def update_leave_status(
         db=db,
         leave_request=leave_req,
         status=new_status,
+    )
+
+
+async def cancel_leave_request(
+    db: AsyncSession,
+    leave_id: str,
+    current_user: Employee,
+) -> LeaveRequest:
+    leave_req = await get_leave_request_by_id(db=db, leave_id=leave_id)
+    if not leave_req:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found",
+        )
+    if leave_req.employee_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only cancel your own leave requests",
+        )
+    if leave_req.status != LeaveStatus.pending:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending leave requests can be cancelled",
+        )
+    return await repo_update_leave_status(
+        db=db,
+        leave_request=leave_req,
+        status=LeaveStatus.cancelled,
     )

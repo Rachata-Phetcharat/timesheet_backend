@@ -23,6 +23,7 @@ services:
       DEBUG: "True"
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
       REFRESH_TOKEN_EXPIRE_DAYS: 7
+      TZ: Asia/Bangkok
     depends_on:
       db:
         condition: service_healthy

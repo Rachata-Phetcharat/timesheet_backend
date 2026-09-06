@@ -14,6 +14,8 @@ class AttendanceStatus(str, enum.Enum):
     on_time = "on_time"
     late = "late"
     absent = "absent"
+    absent_half_morning = "absent_half_morning"
+    absent_half_afternoon = "absent_half_afternoon"
 
 
 class AttendanceRecord(Base):
