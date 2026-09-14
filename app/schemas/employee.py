@@ -17,7 +17,7 @@ class EmployeeCreate(BaseModel):
 
 class EmployeeResponse(BaseModel):
     id: str
-    email: EmailStr
+    email: str
     full_name: str
     role: EmployeeRole
 

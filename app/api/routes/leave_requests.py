@@ -29,7 +29,7 @@ async def get_my_leave_requests(
 @router.get("", response_model=List[LeaveRequestResponse])
 async def get_all_leave_requests_endpoint(
     db: AsyncSession = Depends(get_db),
-    current_admin: Employee = Depends(get_current_admin),
+    current_user: Employee = Depends(get_current_user),
 ):
     from app.services.leave_service import get_all_leaves
     return await get_all_leaves(db)

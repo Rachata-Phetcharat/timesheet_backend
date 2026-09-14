@@ -57,7 +57,7 @@ class LeaveRequest(Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[LeaveStatus] = mapped_column(
         Enum(LeaveStatus, name="leave_status"),
-        default=LeaveStatus.pending,
+        default=LeaveStatus.approved,
         nullable=False,
     )
 

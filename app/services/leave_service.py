@@ -30,6 +30,7 @@ async def create_leave(
         start_date=leave_in.start_date,
         end_date=leave_in.end_date,
         reason=leave_in.reason,
+        duration=leave_in.duration,
     )
 
 
@@ -105,10 +106,10 @@ async def cancel_leave_request(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only cancel your own leave requests",
         )
-    if leave_req.status != LeaveStatus.pending:
+    if leave_req.status not in (LeaveStatus.pending, LeaveStatus.approved):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only pending leave requests can be cancelled",
+            detail="Only pending or approved leave requests can be cancelled",
         )
     return await repo_update_leave_status(
         db=db,

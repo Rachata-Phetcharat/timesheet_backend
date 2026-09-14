@@ -13,14 +13,16 @@ async def create_leave_request(
     start_date: date,
     end_date: date,
     reason: str,
+    duration: str = "full_day",
 ) -> LeaveRequest:
     leave_req = LeaveRequest(
         employee_id=employee_id,
         type=leave_type,
+        duration=duration,
         start_date=start_date,
         end_date=end_date,
         reason=reason,
-        status=LeaveStatus.pending,
+        status=LeaveStatus.approved,
     )
     db.add(leave_req)
     await db.commit()
